@@ -56,11 +56,11 @@ function spawnCache(i: number, j: number) {
   rect.bindPopup(() => {
     const popupDiv = document.createElement("div");
     popupDiv.innerHTML = `
-          <div>There is a cache here at "${i},${j}". It has value <span id="value">${pointValue}</span>.</div>
-          <button id="poke">poke</button>;
-          <button id="give">give</button>`;
+      <div>There is a cache here at "${i},${j}". It has value <span id="value">${pointValue}</span>.</div>
+      <button id="collect">Collect</button>
+      <button id="deposit">Deposit</button>`;
 
-    popupDiv.querySelector<HTMLButtonElement>("#poke")!.addEventListener(
+    popupDiv.querySelector<HTMLButtonElement>("#collect")!.addEventListener(
       "click",
       () => {
         pointValue--;
@@ -71,7 +71,7 @@ function spawnCache(i: number, j: number) {
       },
     );
 
-    popupDiv.querySelector<HTMLButtonElement>("#give")!.addEventListener(
+    popupDiv.querySelector<HTMLButtonElement>("#deposit")!.addEventListener(
       "click",
       () => {
         playerPoints--;
