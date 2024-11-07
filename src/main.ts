@@ -20,12 +20,13 @@ const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
 const CACHE_SPAWN_PROBABILITY = 0.1;
 
-const cellCache = new Map<string, leaflet.Rectangle>();
+const cellCache = new Map<string, Cell>();
 
 interface Cell {
   i: number;
   j: number;
-  cache?: Coin[];
+  rectangle: leaflet.Rectangle;
+  coins: Coin[];
 }
 
 interface Coin {
@@ -58,14 +59,10 @@ const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
 
 function spawnCache(i: number, j: number) {
-  const rect = flyweightHash({ i, j });
-  let pointValue = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
-  //fill up the Cache with coins and their serial numbers
-  // for (let serial = 0; serial < pointValue; serial++) {
-  console.log("Spawning cache at", i, j, "with value", pointValue);
+  const cell = flyweightHash({ i, j } as Cell);
+  let pointValue = cell.coins.length;
 
-  // }
-  rect.bindPopup(() => {
+  cell.rectangle.bindPopup(() => {
     const popupDiv = document.createElement("div");
     popupDiv.innerHTML = `
       <div>There is a cache here at "${i},${j}". It has value <span id="value">${pointValue}</span>.</div>
@@ -86,6 +83,7 @@ function spawnCache(i: number, j: number) {
     popupDiv.querySelector<HTMLButtonElement>("#deposit")!.addEventListener(
       "click",
       () => {
+        console.log(cell.coins);
         playerPoints--;
         popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           pointValue.toString();
@@ -127,22 +125,36 @@ function translateLatLngToTile(lat: number, lng: number) {
   return { i, j };
 }
 
-function flyweightHash(Cell: Cell): leaflet.Rectangle {
-  const key = `${Cell.i},${Cell.j}`;
+function flyweightHash(cell: Cell): Cell {
+  const key = `${cell.i},${cell.j}`;
   if (cellCache.has(key)) {
+    console.log(`Using cached cell for ${key}`);
     return cellCache.get(key)!;
   }
   const origin = NULL_ISLAND;
   const bounds = leaflet.latLngBounds([
-    [origin.lat + Cell.i * TILE_DEGREES, origin.lng + Cell.j * TILE_DEGREES],
+    [origin.lat + cell.i * TILE_DEGREES, origin.lng + cell.j * TILE_DEGREES],
     [
-      origin.lat + (Cell.i + 1) * TILE_DEGREES,
-      origin.lng + (Cell.j + 1) * TILE_DEGREES,
+      origin.lat + (cell.i + 1) * TILE_DEGREES,
+      origin.lng + (cell.j + 1) * TILE_DEGREES,
     ],
   ]);
 
   const rect = leaflet.rectangle(bounds);
   rect.addTo(map);
-  cellCache.set(key, rect);
-  return rect;
+
+  const pointValue = Math.floor(
+    luck([cell.i, cell.j, "initialValue"].toString()) * 100,
+  );
+
+  const coins: Coin[] = [];
+  for (let serial = 0; serial < pointValue; serial++) {
+    coins.push({ i: cell.i, j: cell.j, serial });
+  }
+
+  const cellData: Cell = { i: cell.i, j: cell.j, rectangle: rect, coins };
+
+  cellCache.set(key, cellData);
+
+  return cellData;
 }
