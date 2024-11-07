@@ -9,15 +9,22 @@ import "./leafletWorkaround.ts";
 
 import "./style.css";
 
-// // Deterministic random number generator
+// Deterministic random number generator
 import luck from "./luck.ts";
 
 const OAKES_CLASSROOM = leaflet.latLng(36.98949379578401, -122.06277128548504);
+const NULL_ISLAND = leaflet.latLng(0, 0);
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
 const CACHE_SPAWN_PROBABILITY = 0.1;
+
+const cellCache = new Map<string, leaflet.Rectangle>();
+interface Cell {
+  i: number;
+  j: number;
+}
 
 const map = leaflet.map(document.getElementById("map")!, {
   center: OAKES_CLASSROOM,
@@ -43,15 +50,7 @@ const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
 
 function spawnCache(i: number, j: number) {
-  const origin = OAKES_CLASSROOM;
-  const bounds = leaflet.latLngBounds([
-    [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
-    [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
-  ]);
-
-  const rect = leaflet.rectangle(bounds);
-  rect.addTo(map);
-
+  const rect = flyweightHash({ i, j });
   let pointValue = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
   rect.bindPopup(() => {
     const popupDiv = document.createElement("div");
@@ -85,10 +84,48 @@ function spawnCache(i: number, j: number) {
     return popupDiv;
   });
 }
+
+const oakesGrid = translateLatLngToTile(
+  OAKES_CLASSROOM.lat,
+  OAKES_CLASSROOM.lng,
+);
+const mapCenterLatLng: [number, number] = [
+  oakesGrid.i * TILE_DEGREES,
+  oakesGrid.j * TILE_DEGREES,
+];
+
+map.setView(mapCenterLatLng, GAMEPLAY_ZOOM_LEVEL);
 for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
   for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
     if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
       spawnCache(i, j);
     }
   }
+}
+
+function translateLatLngToTile(lat: number, lng: number) {
+  //global coordinate sysetm anchored at Null Island
+  const i = Math.floor(lat / TILE_DEGREES);
+  const j = Math.floor(lng / TILE_DEGREES);
+  return { i, j };
+}
+
+function flyweightHash(Cell: Cell): leaflet.Rectangle {
+  const key = `${Cell.i},${Cell.j}`;
+  if (cellCache.has(key)) {
+    return cellCache.get(key)!;
+  }
+  const origin = NULL_ISLAND;
+  const bounds = leaflet.latLngBounds([
+    [origin.lat + Cell.i * TILE_DEGREES, origin.lng + Cell.j * TILE_DEGREES],
+    [
+      origin.lat + (Cell.i + 1) * TILE_DEGREES,
+      origin.lng + (Cell.j + 1) * TILE_DEGREES,
+    ],
+  ]);
+
+  const rect = leaflet.rectangle(bounds);
+  rect.addTo(map);
+  cellCache.set(key, rect);
+  return rect;
 }
