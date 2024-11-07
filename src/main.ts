@@ -21,9 +21,17 @@ const NEIGHBORHOOD_SIZE = 8;
 const CACHE_SPAWN_PROBABILITY = 0.1;
 
 const cellCache = new Map<string, leaflet.Rectangle>();
+
 interface Cell {
   i: number;
   j: number;
+  cache?: Coin[];
+}
+
+interface Coin {
+  i: number;
+  j: number;
+  serial: number;
 }
 
 const map = leaflet.map(document.getElementById("map")!, {
@@ -52,6 +60,11 @@ statusPanel.innerHTML = "No points yet...";
 function spawnCache(i: number, j: number) {
   const rect = flyweightHash({ i, j });
   let pointValue = Math.floor(luck([i, j, "initialValue"].toString()) * 100);
+  //fill up the Cache with coins and their serial numbers
+  // for (let serial = 0; serial < pointValue; serial++) {
+  console.log("Spawning cache at", i, j, "with value", pointValue);
+
+  // }
   rect.bindPopup(() => {
     const popupDiv = document.createElement("div");
     popupDiv.innerHTML = `
@@ -89,14 +102,18 @@ const oakesGrid = translateLatLngToTile(
   OAKES_CLASSROOM.lat,
   OAKES_CLASSROOM.lng,
 );
+console.log("Oakes classroom is at", oakesGrid);
 const mapCenterLatLng: [number, number] = [
   oakesGrid.i * TILE_DEGREES,
   oakesGrid.j * TILE_DEGREES,
 ];
 
 map.setView(mapCenterLatLng, GAMEPLAY_ZOOM_LEVEL);
-for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
-  for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
+const baseI = oakesGrid.i;
+const baseJ = oakesGrid.j;
+
+for (let i = baseI - NEIGHBORHOOD_SIZE; i < baseI + NEIGHBORHOOD_SIZE; i++) {
+  for (let j = baseJ - NEIGHBORHOOD_SIZE; j < baseJ + NEIGHBORHOOD_SIZE; j++) {
     if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
       spawnCache(i, j);
     }
