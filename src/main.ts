@@ -29,6 +29,8 @@ interface Cell {
   coins: Coin[];
 }
 
+const playerCoins: Coin[] = [];
+
 interface Coin {
   i: number;
   j: number;
@@ -72,6 +74,14 @@ function spawnCache(i: number, j: number) {
     popupDiv.querySelector<HTMLButtonElement>("#collect")!.addEventListener(
       "click",
       () => {
+        if (pointValue <= 0) {
+          return;
+        }
+        const currentcoin = cell.coins.pop();
+        playerCoins.push(currentcoin!);
+        const debugArray = playerCoins.map(coinToString);
+        console.log("Player coins", debugArray);
+
         pointValue--;
         popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           pointValue.toString();
@@ -83,11 +93,15 @@ function spawnCache(i: number, j: number) {
     popupDiv.querySelector<HTMLButtonElement>("#deposit")!.addEventListener(
       "click",
       () => {
-        console.log(cell.coins);
+        if (playerCoins.length <= 0) {
+          return;
+        }
+        const currentcoin = playerCoins.pop();
+        cell.coins.push(currentcoin!);
         playerPoints--;
         popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           pointValue.toString();
-        pointValue--;
+        pointValue++;
         statusPanel.innerHTML = `${playerPoints} points accumulated`;
       },
     );
@@ -157,4 +171,8 @@ function flyweightHash(cell: Cell): Cell {
   cellCache.set(key, cellData);
 
   return cellData;
+}
+
+function coinToString(coin: Coin) {
+  return `${coin.i}:${coin.j}#${coin.serial}`;
 }
