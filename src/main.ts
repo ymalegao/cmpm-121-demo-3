@@ -67,7 +67,7 @@ function spawnCache(i: number, j: number) {
   cell.rectangle.bindPopup(() => {
     const popupDiv = document.createElement("div");
     popupDiv.innerHTML = `
-      <div>There is a cache here at "${i},${j}". It has value <span id="value">${pointValue}</span>.</div>
+      <div>There is a cache here at "${i},${j}". It has valdue <span id="value">${pointValue}</span>.</div>
       <button id="collect">Collect</button>
       <button id="deposit">Deposit</button>`;
 
