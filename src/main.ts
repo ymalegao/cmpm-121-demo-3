@@ -67,7 +67,7 @@ function spawnCache(i: number, j: number) {
   cell.rectangle.bindPopup(() => {
     const popupDiv = document.createElement("div");
     popupDiv.innerHTML = `
-      <div>There is a cache here at "${i},${j}". It has valdue <span id="value">${pointValue}</span>.</div>
+      <div>There is a cache here at "${i},${j}". It has value <span id="value">${pointValue}</span>.</div>
       <button id="collect">Collect</button>
       <button id="deposit">Deposit</button>`;
 
@@ -79,14 +79,14 @@ function spawnCache(i: number, j: number) {
         }
         const currentcoin = cell.coins.pop();
         playerCoins.push(currentcoin!);
-        const debugArray = playerCoins.map(coinToString);
-        console.log("Player coins", debugArray);
 
         pointValue--;
         popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           pointValue.toString();
         playerPoints++;
-        statusPanel.innerHTML = `${playerPoints} points accumulated`;
+        const coinIdentity = coinToString(currentcoin!);
+        statusPanel.innerHTML =
+          `Collected coin ${coinIdentity}. Total points: ${playerPoints}`;
       },
     );
 
@@ -102,7 +102,9 @@ function spawnCache(i: number, j: number) {
         popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
           pointValue.toString();
         pointValue++;
-        statusPanel.innerHTML = `${playerPoints} points accumulated`;
+        const coinIdentity = coinToString(currentcoin!);
+        statusPanel.innerHTML =
+          `Deposited coin ${coinIdentity}. Total points: ${playerPoints}`;
       },
     );
 
