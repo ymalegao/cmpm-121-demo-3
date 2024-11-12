@@ -15,7 +15,7 @@ const OAKES_CLASSROOM = leaflet.latLng(36.98949379578401, -122.06277128548504);
 const NULL_ISLAND = leaflet.latLng(0, 0);
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
-const TILE_DEGREES = 1e-4; // Movement granularity of 0.0001 degrees per cell
+const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
 const CACHE_SPAWN_PROBABILITY = 0.1;
 
@@ -37,7 +37,6 @@ interface Coin {
   serial: number;
 }
 
-// Player's initial position in lat/lng-based coordinates
 const playerPosition = { lat: OAKES_CLASSROOM.lat, lng: OAKES_CLASSROOM.lng };
 
 const map = leaflet.map(document.getElementById("map")!, {
@@ -63,22 +62,33 @@ let playerPoints = 0;
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
 
-// Cache management function to handle spawning with memento pattern support
 function spawnCache(i: number, j: number) {
-  const cell = flyweightHash({ i, j } as Cell);
-
   const key = `${i},${j}`;
-  let pointValue = 0;
 
-  // Restore state from memento if it exists
+  let cell: Cell;
   if (cacheMementos.has(key)) {
     const memento = cacheMementos.get(key)!;
-    pointValue = memento.pointValue;
-    cell.coins = [...memento.coins];
+    const origin = NULL_ISLAND;
+    const bounds = leaflet.latLngBounds([
+      [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
+      [
+        origin.lat + (i + 1) * TILE_DEGREES,
+        origin.lng + (j + 1) * TILE_DEGREES,
+      ],
+    ]);
+
+    const rect = leaflet.rectangle(bounds);
+    rect.addTo(map);
+    cell = { i, j, rectangle: rect, coins: [...memento.coins] };
   } else {
-    pointValue = cell.coins.length;
-    cacheMementos.set(key, { pointValue, coins: [...cell.coins] });
+    cell = flyweightHash({ i, j } as Cell);
+    cacheMementos.set(key, {
+      pointValue: cell.coins.length,
+      coins: [...cell.coins],
+    });
   }
+
+  let pointValue = cell.coins.length;
 
   cell.rectangle.bindPopup(() => {
     const popupDiv = document.createElement("div");
@@ -128,7 +138,6 @@ function spawnCache(i: number, j: number) {
   });
 }
 
-// Initial setup of caches around the starting position
 function initializeCaches() {
   const { i, j } = translateLatLngToTile(
     OAKES_CLASSROOM.lat,
@@ -187,7 +196,6 @@ function coinToString(coin: Coin) {
   return `${coin.i}:${coin.j}#${coin.serial}`;
 }
 
-// Clear all existing cache rectangles from the map without affecting the player marker
 function clearCaches() {
   map.eachLayer((layer) => {
     if (layer instanceof leaflet.Rectangle) {
@@ -196,7 +204,6 @@ function clearCaches() {
   });
 }
 
-// Regenerate caches based on player's current position, clearing old ones
 function regenerateCaches() {
   clearCaches();
 
@@ -205,7 +212,6 @@ function regenerateCaches() {
     playerPosition.lng,
   );
 
-  // Regenerate caches within the neighborhood based on the new player position
   for (let x = i - NEIGHBORHOOD_SIZE; x <= i + NEIGHBORHOOD_SIZE; x++) {
     for (let y = j - NEIGHBORHOOD_SIZE; y <= j + NEIGHBORHOOD_SIZE; y++) {
       if (luck([x, y].toString()) < CACHE_SPAWN_PROBABILITY) {
@@ -214,12 +220,10 @@ function regenerateCaches() {
     }
   }
 
-  // Update map center and player marker to follow the player’s new position
   map.setView([playerPosition.lat, playerPosition.lng], GAMEPLAY_ZOOM_LEVEL);
   playerMarker.setLatLng([playerPosition.lat, playerPosition.lng]);
 }
 
-// Event listeners for movement buttons to move by TILE_DEGREES
 document.getElementById("north")!.addEventListener("click", () => {
   playerPosition.lat += TILE_DEGREES; // Move north
   regenerateCaches();
