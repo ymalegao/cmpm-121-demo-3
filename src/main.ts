@@ -15,7 +15,7 @@ const OAKES_CLASSROOM = leaflet.latLng(36.98949379578401, -122.06277128548504);
 const NULL_ISLAND = leaflet.latLng(0, 0);
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
-const TILE_DEGREES = 1e-4;
+const TILE_DEGREES = 1e-4; // Movement granularity of 0.0001 degrees per cell
 const NEIGHBORHOOD_SIZE = 8;
 const CACHE_SPAWN_PROBABILITY = 0.1;
 
@@ -37,7 +37,8 @@ interface Coin {
   serial: number;
 }
 
-const playerPosition = { i: 0, j: 0 }; // starting grid position
+// Player's initial position in lat/lng-based coordinates
+const playerPosition = { lat: OAKES_CLASSROOM.lat, lng: OAKES_CLASSROOM.lng };
 
 const map = leaflet.map(document.getElementById("map")!, {
   center: OAKES_CLASSROOM,
@@ -62,11 +63,14 @@ let playerPoints = 0;
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
 statusPanel.innerHTML = "No points yet...";
 
+// Cache management function to handle spawning with memento pattern support
 function spawnCache(i: number, j: number) {
   const cell = flyweightHash({ i, j } as Cell);
 
   const key = `${i},${j}`;
   let pointValue = 0;
+
+  // Restore state from memento if it exists
   if (cacheMementos.has(key)) {
     const memento = cacheMementos.get(key)!;
     pointValue = memento.pointValue;
@@ -124,27 +128,22 @@ function spawnCache(i: number, j: number) {
   });
 }
 
-const oakesGrid = translateLatLngToTile(
-  OAKES_CLASSROOM.lat,
-  OAKES_CLASSROOM.lng,
-);
-const mapCenterLatLng: [number, number] = [
-  oakesGrid.i * TILE_DEGREES,
-  oakesGrid.j * TILE_DEGREES,
-];
-
-map.setView(mapCenterLatLng, GAMEPLAY_ZOOM_LEVEL);
-const baseI = oakesGrid.i;
-const baseJ = oakesGrid.j;
-
-// Generate initial caches within the starting neighborhood
-for (let i = baseI - NEIGHBORHOOD_SIZE; i < baseI + NEIGHBORHOOD_SIZE; i++) {
-  for (let j = baseJ - NEIGHBORHOOD_SIZE; j < baseJ + NEIGHBORHOOD_SIZE; j++) {
-    if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
-      spawnCache(i, j);
+// Initial setup of caches around the starting position
+function initializeCaches() {
+  const { i, j } = translateLatLngToTile(
+    OAKES_CLASSROOM.lat,
+    OAKES_CLASSROOM.lng,
+  );
+  for (let x = i - NEIGHBORHOOD_SIZE; x <= i + NEIGHBORHOOD_SIZE; x++) {
+    for (let y = j - NEIGHBORHOOD_SIZE; y <= j + NEIGHBORHOOD_SIZE; y++) {
+      if (luck([x, y].toString()) < CACHE_SPAWN_PROBABILITY) {
+        spawnCache(x, y);
+      }
     }
   }
 }
+
+initializeCaches();
 
 function translateLatLngToTile(lat: number, lng: number) {
   const i = Math.floor(lat / TILE_DEGREES);
@@ -188,6 +187,7 @@ function coinToString(coin: Coin) {
   return `${coin.i}:${coin.j}#${coin.serial}`;
 }
 
+// Clear all existing cache rectangles from the map without affecting the player marker
 function clearCaches() {
   map.eachLayer((layer) => {
     if (layer instanceof leaflet.Rectangle) {
@@ -196,49 +196,46 @@ function clearCaches() {
   });
 }
 
+// Regenerate caches based on player's current position, clearing old ones
 function regenerateCaches() {
   clearCaches();
 
-  for (
-    let i = playerPosition.i - NEIGHBORHOOD_SIZE;
-    i <= playerPosition.i + NEIGHBORHOOD_SIZE;
-    i++
-  ) {
-    for (
-      let j = playerPosition.j - NEIGHBORHOOD_SIZE;
-      j <= playerPosition.j + NEIGHBORHOOD_SIZE;
-      j++
-    ) {
-      if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
-        spawnCache(i, j);
+  const { i, j } = translateLatLngToTile(
+    playerPosition.lat,
+    playerPosition.lng,
+  );
+
+  // Regenerate caches within the neighborhood based on the new player position
+  for (let x = i - NEIGHBORHOOD_SIZE; x <= i + NEIGHBORHOOD_SIZE; x++) {
+    for (let y = j - NEIGHBORHOOD_SIZE; y <= j + NEIGHBORHOOD_SIZE; y++) {
+      if (luck([x, y].toString()) < CACHE_SPAWN_PROBABILITY) {
+        spawnCache(x, y);
       }
     }
   }
 
-  const newLatLng = leaflet.latLng(
-    OAKES_CLASSROOM.lat + playerPosition.i * TILE_DEGREES,
-    OAKES_CLASSROOM.lng + playerPosition.j * TILE_DEGREES,
-  );
-  map.setView(newLatLng, GAMEPLAY_ZOOM_LEVEL);
-  playerMarker.setLatLng(newLatLng);
+  // Update map center and player marker to follow the player’s new position
+  map.setView([playerPosition.lat, playerPosition.lng], GAMEPLAY_ZOOM_LEVEL);
+  playerMarker.setLatLng([playerPosition.lat, playerPosition.lng]);
 }
 
+// Event listeners for movement buttons to move by TILE_DEGREES
 document.getElementById("north")!.addEventListener("click", () => {
-  playerPosition.i -= 1;
+  playerPosition.lat += TILE_DEGREES; // Move north
   regenerateCaches();
 });
 
 document.getElementById("south")!.addEventListener("click", () => {
-  playerPosition.i += 1;
+  playerPosition.lat -= TILE_DEGREES; // Move south
   regenerateCaches();
 });
 
 document.getElementById("west")!.addEventListener("click", () => {
-  playerPosition.j -= 1;
+  playerPosition.lng -= TILE_DEGREES; // Move west
   regenerateCaches();
 });
 
 document.getElementById("east")!.addEventListener("click", () => {
-  playerPosition.j += 1;
+  playerPosition.lng += TILE_DEGREES; // Move east
   regenerateCaches();
 });
