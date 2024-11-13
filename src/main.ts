@@ -113,6 +113,8 @@ if (savedPlayerCoins) {
   playerCoins.push(...coins);
 }
 
+updateCoinList();
+
 function spawnCache(i: number, j: number) {
   const key = `${i},${j}`;
 
@@ -165,6 +167,7 @@ function spawnCache(i: number, j: number) {
 
         cacheMementos.set(key, { pointValue, coins: [...cell.coins] });
         updateStorage();
+        updateCoinList();
       },
     );
 
@@ -184,6 +187,7 @@ function spawnCache(i: number, j: number) {
 
         cacheMementos.set(key, { pointValue, coins: [...cell.coins] });
         updateStorage();
+        updateCoinList();
       },
     );
 
@@ -329,3 +333,85 @@ document.getElementById("east")!.addEventListener("click", () => {
   updateStorage();
   regenerateCaches();
 });
+
+let watchId: number | null = null;
+document
+  .getElementById("sensor")!
+  .addEventListener("click", () => {
+    if (watchId === null) {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          playerPosition.lat = position.coords.latitude;
+          playerPosition.lng = position.coords.longitude;
+          movementHistory.push(
+            leaflet.latLng(
+              playerPosition.lat,
+              playerPosition.lng,
+            ),
+          );
+          polyline.addLatLng([
+            playerPosition.lat,
+            playerPosition.lng,
+          ]);
+          updateStorage();
+          regenerateCaches();
+        },
+        (error) => alert("Geolocation error: " + error.message),
+        { enableHighAccuracy: true },
+      );
+      alert("Automatic position updating enabled.");
+    } else {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+      alert("Automatic position updating disabled.");
+    }
+  });
+
+document.getElementById("reset")!.addEventListener("click", () => {
+  const confirmReset = prompt(
+    "Are you sure you want to erase your game state? Type 'yes' to confirm.",
+  );
+  if (confirmReset && confirmReset.toLowerCase() === "yes") {
+    localStorage.clear();
+    playerPoints = 0;
+    playerCoins.length = 0;
+    movementHistory.length = 0;
+    polyline.setLatLngs([]);
+    playerPosition.lat = OAKES_CLASSROOM.lat;
+    playerPosition.lng = OAKES_CLASSROOM.lng;
+    cacheMementos.clear();
+    updateStorage();
+    regenerateCaches();
+    statusPanel.innerHTML = "No points yet...";
+    alert("Game state reset successfully!");
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+  if (target.classList.contains("coin-id")) {
+    const i = Number(target.dataset.i);
+    const j = Number(target.dataset.j);
+    const cacheLat = NULL_ISLAND.lat + i * TILE_DEGREES;
+    const cacheLng = NULL_ISLAND.lng + j * TILE_DEGREES;
+    map.setView([cacheLat, cacheLng], GAMEPLAY_ZOOM_LEVEL);
+  }
+});
+
+function updateCoinList() {
+  const coinListDiv = document.getElementById("coinList")!;
+  coinListDiv.innerHTML = "Collected Coins:<br>";
+
+  playerCoins.forEach((coin) => {
+    const coinIdentity = coinToString(coin);
+    const coinElement = document.createElement("span");
+    coinElement.classList.add("coin-id");
+    coinElement.dataset.i = coin.i.toString();
+    coinElement.dataset.j = coin.j.toString();
+    coinElement.innerText = coinIdentity;
+    coinElement.style.cursor = "pointer";
+    coinElement.style.display = "block";
+
+    coinListDiv.appendChild(coinElement);
+  });
+}
