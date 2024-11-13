@@ -37,10 +37,16 @@ interface Coin {
   serial: number;
 }
 
-const playerPosition = { lat: OAKES_CLASSROOM.lat, lng: OAKES_CLASSROOM.lng };
+const playerPosition = JSON.parse(
+  localStorage.getItem("playerPosition") ||
+    JSON.stringify({
+      lat: OAKES_CLASSROOM.lat,
+      lng: OAKES_CLASSROOM.lng,
+    }),
+);
 
 const map = leaflet.map(document.getElementById("map")!, {
-  center: OAKES_CLASSROOM,
+  center: playerPosition,
   zoom: GAMEPLAY_ZOOM_LEVEL,
   minZoom: GAMEPLAY_ZOOM_LEVEL,
   maxZoom: GAMEPLAY_ZOOM_LEVEL,
@@ -54,13 +60,58 @@ leaflet.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
 
-const playerMarker = leaflet.marker(OAKES_CLASSROOM);
+const playerMarker = leaflet.marker(playerPosition);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
 
-let playerPoints = 0;
+let playerPoints = Number(localStorage.getItem("playerPoints") || 0);
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!;
-statusPanel.innerHTML = "No points yet...";
+statusPanel.innerHTML = playerPoints > 0
+  ? `Total points: ${playerPoints}`
+  : "No points yet...";
+
+const movementHistory: leaflet.LatLng[] = JSON.parse(
+  localStorage.getItem("movementHistory") || "[]",
+);
+
+const polyline = leaflet
+  .polyline(movementHistory, { color: "blue" })
+  .addTo(map);
+
+function updateStorage() {
+  localStorage.setItem(
+    "playerPosition",
+    JSON.stringify(playerPosition),
+  );
+  localStorage.setItem("playerPoints", playerPoints.toString());
+  localStorage.setItem(
+    "movementHistory",
+    JSON.stringify(movementHistory),
+  );
+  localStorage.setItem(
+    "cacheMementos",
+    JSON.stringify(Array.from(cacheMementos.entries())),
+  );
+  localStorage.setItem(
+    "playerCoins",
+    JSON.stringify(playerCoins),
+  );
+}
+
+const savedCacheMementos = localStorage.getItem("cacheMementos");
+if (savedCacheMementos) {
+  const entries = JSON.parse(savedCacheMementos);
+  for (const [key, value] of entries) {
+    cacheMementos.set(key, value);
+  }
+}
+
+// Load playerCoins from localStorage
+const savedPlayerCoins = localStorage.getItem("playerCoins");
+if (savedPlayerCoins) {
+  const coins = JSON.parse(savedPlayerCoins);
+  playerCoins.push(...coins);
+}
 
 function spawnCache(i: number, j: number) {
   const key = `${i},${j}`;
@@ -113,6 +164,7 @@ function spawnCache(i: number, j: number) {
           `Collected coin ${coinIdentity}. Total points: ${playerPoints}`;
 
         cacheMementos.set(key, { pointValue, coins: [...cell.coins] });
+        updateStorage();
       },
     );
 
@@ -131,6 +183,7 @@ function spawnCache(i: number, j: number) {
           `Deposited coin ${coinIdentity}. Total points: ${playerPoints}`;
 
         cacheMementos.set(key, { pointValue, coins: [...cell.coins] });
+        updateStorage();
       },
     );
 
@@ -140,8 +193,8 @@ function spawnCache(i: number, j: number) {
 
 function initializeCaches() {
   const { i, j } = translateLatLngToTile(
-    OAKES_CLASSROOM.lat,
-    OAKES_CLASSROOM.lng,
+    playerPosition.lat,
+    playerPosition.lng,
   );
   for (let x = i - NEIGHBORHOOD_SIZE; x <= i + NEIGHBORHOOD_SIZE; x++) {
     for (let y = j - NEIGHBORHOOD_SIZE; y <= j + NEIGHBORHOOD_SIZE; y++) {
@@ -226,20 +279,53 @@ function regenerateCaches() {
 
 document.getElementById("north")!.addEventListener("click", () => {
   playerPosition.lat += TILE_DEGREES; // Move north
+  movementHistory.push(
+    leaflet.latLng(playerPosition.lat, playerPosition.lng),
+  );
+  polyline.addLatLng([
+    playerPosition.lat,
+    playerPosition.lng,
+  ]);
+  updateStorage();
+
   regenerateCaches();
 });
 
 document.getElementById("south")!.addEventListener("click", () => {
   playerPosition.lat -= TILE_DEGREES; // Move south
+  movementHistory.push(
+    leaflet.latLng(playerPosition.lat, playerPosition.lng),
+  );
+  polyline.addLatLng([
+    playerPosition.lat,
+    playerPosition.lng,
+  ]);
+  updateStorage();
   regenerateCaches();
 });
 
 document.getElementById("west")!.addEventListener("click", () => {
   playerPosition.lng -= TILE_DEGREES; // Move west
+  movementHistory.push(
+    leaflet.latLng(playerPosition.lat, playerPosition.lng),
+  );
+  polyline.addLatLng([
+    playerPosition.lat,
+    playerPosition.lng,
+  ]);
+  updateStorage();
   regenerateCaches();
 });
 
 document.getElementById("east")!.addEventListener("click", () => {
   playerPosition.lng += TILE_DEGREES; // Move east
+  movementHistory.push(
+    leaflet.latLng(playerPosition.lat, playerPosition.lng),
+  );
+  polyline.addLatLng([
+    playerPosition.lat,
+    playerPosition.lng,
+  ]);
+  updateStorage();
   regenerateCaches();
 });
