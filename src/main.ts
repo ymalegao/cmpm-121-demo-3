@@ -400,18 +400,34 @@ document.addEventListener("click", (event) => {
 
 function updateCoinList() {
   const coinListDiv = document.getElementById("coinList")!;
-  coinListDiv.innerHTML = "Collected Coins:<br>";
+  coinListDiv.innerHTML = "";
 
-  playerCoins.forEach((coin) => {
-    const coinIdentity = coinToString(coin);
-    const coinElement = document.createElement("span");
-    coinElement.classList.add("coin-id");
-    coinElement.dataset.i = coin.i.toString();
-    coinElement.dataset.j = coin.j.toString();
-    coinElement.innerText = coinIdentity;
-    coinElement.style.cursor = "pointer";
-    coinElement.style.display = "block";
+  if (playerCoins.length === 0) {
+    coinListDiv.innerText = "No collected coins yet.";
+  } else {
+    playerCoins.forEach((coin) => {
+      const coinIdentity = coinToString(coin);
+      const coinElement = document.createElement("span");
+      coinElement.classList.add("coin-id");
+      coinElement.dataset.i = coin.i.toString();
+      coinElement.dataset.j = coin.j.toString();
+      coinElement.innerText = coinIdentity;
+      coinElement.style.display = "block";
 
-    coinListDiv.appendChild(coinElement);
-  });
+      coinListDiv.appendChild(coinElement);
+    });
+  }
 }
+
+document.getElementById("coinListHeader")!.addEventListener("click", () => {
+  const coinListDiv = document.getElementById("coinList")!;
+  const coinListHeader = document.getElementById("coinListHeader")!;
+
+  if (coinListDiv.style.display === "none") {
+    coinListDiv.style.display = "block";
+    coinListHeader.innerText = "Collected Coins ▲";
+  } else {
+    coinListDiv.style.display = "none";
+    coinListHeader.innerText = "Collected Coins ▼";
+  }
+});
