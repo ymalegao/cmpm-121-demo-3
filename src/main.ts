@@ -115,38 +115,43 @@ if (savedPlayerCoins) {
 
 updateCoinList();
 
-function spawnCache(i: number, j: number) {
+function createCacheRectangle(i: number, j: number): leaflet.Rectangle {
+  const origin = NULL_ISLAND;
+  const bounds = leaflet.latLngBounds([
+    [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
+    [
+      origin.lat + (i + 1) * TILE_DEGREES,
+      origin.lng + (j + 1) * TILE_DEGREES,
+    ],
+  ]);
+  return leaflet.rectangle(bounds).addTo(map);
+}
+
+function initializeCacheState(i: number, j: number): Cell {
   const key = `${i},${j}`;
 
-  let cell: Cell;
   if (cacheMementos.has(key)) {
+    // Use saved state
     const memento = cacheMementos.get(key)!;
-    const origin = NULL_ISLAND;
-    const bounds = leaflet.latLngBounds([
-      [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
-      [
-        origin.lat + (i + 1) * TILE_DEGREES,
-        origin.lng + (j + 1) * TILE_DEGREES,
-      ],
-    ]);
-
-    const rect = leaflet.rectangle(bounds);
-    rect.addTo(map);
-    cell = { i, j, rectangle: rect, coins: [...memento.coins] };
+    const rect = createCacheRectangle(i, j);
+    return { i, j, rectangle: rect, coins: [...memento.coins] };
   } else {
-    cell = flyweightHash({ i, j } as Cell);
+    // Initialize new state
+    const cell = flyweightHash({ i, j } as Cell);
     cacheMementos.set(key, {
       pointValue: cell.coins.length,
       coins: [...cell.coins],
     });
+    return cell;
   }
+}
 
+function attachPopupHandlers(cell: Cell) {
   let pointValue = cell.coins.length;
-
   cell.rectangle.bindPopup(() => {
     const popupDiv = document.createElement("div");
     popupDiv.innerHTML = `
-      <div>There is a cache here at "${i},${j}". It has value <span id="value">${pointValue}</span>.</div>
+      <div>There is a cache here at "${cell.i},${cell.j}". It has value <span id="value">${pointValue}</span>.</div>
       <button id="collect">Collect</button>
       <button id="deposit">Deposit</button>`;
 
@@ -165,6 +170,7 @@ function spawnCache(i: number, j: number) {
         statusPanel.innerHTML =
           `Collected coin ${coinIdentity}. Total points: ${playerPoints}`;
 
+        const key = `${cell.i},${cell.j}`;
         cacheMementos.set(key, { pointValue, coins: [...cell.coins] });
         updateStorage();
         updateCoinList();
@@ -177,6 +183,7 @@ function spawnCache(i: number, j: number) {
         if (playerCoins.length <= 0) return;
         const currentCoin = playerCoins.pop();
         cell.coins.push(currentCoin!);
+
         playerPoints--;
         pointValue++;
         popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML =
@@ -185,6 +192,7 @@ function spawnCache(i: number, j: number) {
         statusPanel.innerHTML =
           `Deposited coin ${coinIdentity}. Total points: ${playerPoints}`;
 
+        const key = `${cell.i},${cell.j}`;
         cacheMementos.set(key, { pointValue, coins: [...cell.coins] });
         updateStorage();
         updateCoinList();
@@ -193,6 +201,11 @@ function spawnCache(i: number, j: number) {
 
     return popupDiv;
   });
+}
+
+function spawnCache(i: number, j: number) {
+  const cell = initializeCacheState(i, j);
+  attachPopupHandlers(cell);
 }
 
 function initializeCaches() {
@@ -382,6 +395,7 @@ document.getElementById("reset")!.addEventListener("click", () => {
     cacheMementos.clear();
     updateStorage();
     regenerateCaches();
+    updateCoinList();
     statusPanel.innerHTML = "No points yet...";
     alert("Game state reset successfully!");
   }
