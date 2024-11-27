@@ -78,24 +78,31 @@ const polyline = leaflet
   .polyline(movementHistory, { color: "blue" })
   .addTo(map);
 
-function updateStorage() {
-  localStorage.setItem(
-    "playerPosition",
-    JSON.stringify(playerPosition),
-  );
+function savePlayerState() {
+  localStorage.setItem("playerPosition", JSON.stringify(playerPosition));
   localStorage.setItem("playerPoints", playerPoints.toString());
-  localStorage.setItem(
-    "movementHistory",
-    JSON.stringify(movementHistory),
-  );
+}
+
+function saveMovementHistory() {
+  localStorage.setItem("movementHistory", JSON.stringify(movementHistory));
+}
+
+function saveCachesState() {
   localStorage.setItem(
     "cacheMementos",
     JSON.stringify(Array.from(cacheMementos.entries())),
   );
-  localStorage.setItem(
-    "playerCoins",
-    JSON.stringify(playerCoins),
-  );
+}
+
+function savePlayerCoins() {
+  localStorage.setItem("playerCoins", JSON.stringify(playerCoins));
+}
+
+function updateStorage() {
+  savePlayerState();
+  saveMovementHistory();
+  saveCachesState();
+  savePlayerCoins();
 }
 
 const savedCacheMementos = localStorage.getItem("cacheMementos");
